@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import type { Parent } from "@/lib/supabase";
+import { SPRING } from "@/lib/motion";
 
 export default function ParentList({ parents }: { parents: Parent[] }) {
   if (parents.length === 0) {
@@ -20,7 +21,7 @@ export default function ParentList({ parents }: { parents: Parent[] }) {
           key={p.id}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", damping: 1, duration: 0.4, delay: i * 0.03 }}
+          transition={{ ...SPRING, delay: i * 0.03 }}
         >
           <Link
             href={`/parent/${p.id}`}

@@ -7,8 +7,8 @@
   --surface-0: #0a0a0a;
   --surface-1: #141414;
   --surface-2: #1c1c1c;
-  --surface-1-translucent: rgba(20, 20, 20, 0.55);
-  --surface-2-translucent: rgba(28, 28, 28, 0.7);
+  --surface-1-translucent: rgba(30, 30, 30, 0.55);
+  --surface-2-translucent: rgba(36, 36, 36, 0.7);
 
   --accent: #f5b544;
   --accent-soft: rgba(245, 181, 68, 0.15);
@@ -35,37 +35,39 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.material-card {
-  background: var(--surface-1-translucent);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
+@layer components {
+  .material-card {
+    background: var(--surface-1-translucent);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
 
-.material-card--elevated {
-  background: var(--surface-2-translucent);
-  border-color: rgba(255, 255, 255, 0.12);
-}
+  .material-card--elevated {
+    background: var(--surface-2-translucent);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
 
-.press-feedback {
-  transition:
-    transform 100ms ease-out,
-    background-color 150ms ease-out,
-    border-color 150ms ease-out;
-}
-
-.press-feedback:active {
-  transform: scale(0.98);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .press-feedback,
-  .press-feedback:active {
-    transform: none;
+  .press-feedback {
     transition:
+      transform 100ms ease-out,
       background-color 150ms ease-out,
       border-color 150ms ease-out;
+  }
+
+  .press-feedback:active {
+    transform: scale(0.98);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .press-feedback,
+    .press-feedback:active {
+      transform: none;
+      transition:
+        background-color 150ms ease-out,
+        border-color 150ms ease-out;
+    }
   }
 }

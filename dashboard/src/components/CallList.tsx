@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Call } from "@/lib/supabase";
+import { SPRING } from "@/lib/motion";
 
 function Badge({ children, tone }: { children: React.ReactNode; tone: "green" | "yellow" | "red" | "gray" }) {
   const tones: Record<string, string> = {
@@ -52,7 +53,7 @@ function CallRow({ call }: { call: Call }) {
             viewBox="0 0 10 10"
             fill="none"
             animate={{ rotate: open ? 180 : 0 }}
-            transition={{ type: "spring", damping: 1, duration: 0.3 }}
+            transition={SPRING}
           >
             <path
               d="M2 3.5L5 6.5L8 3.5"
@@ -72,7 +73,7 @@ function CallRow({ call }: { call: Call }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", damping: 1, duration: 0.35 }}
+            transition={SPRING}
             className="border-t border-white/10"
           >
             <div className="px-4 py-3">

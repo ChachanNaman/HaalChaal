@@ -16,7 +16,7 @@ Adult children — especially NRIs or those living in another city — worry abo
 
 | Layer | Tool |
 |---|---|
-| Telephony | Twilio + ConversationRelay |
+| Telephony | Twilio (Gather/Say turn-based speech loop — ConversationRelay's real-time streaming requires a paid Twilio account, so this uses the classic always-available voice verbs instead) |
 | Conversation & extraction LLM | Groq (Llama 3.3 70B) |
 | Hindi/Hinglish STT + TTS | Sarvam AI (Saaras + Bulbul) |
 | Database | Supabase |
@@ -31,8 +31,8 @@ See [`PRD.md`](PRD.md) for the full product spec.
 ```
 voice-backend/   FastAPI service: Twilio call handling, STT->LLM->TTS conversation loop,
                  post-call structured extraction, escalation logic, WhatsApp delivery.
-supabase/        SQL schema for parents / calls / family_contacts.
-dashboard/       (coming next) Next.js trend dashboard.
+supabase/        SQL schema + seed data for parents / calls / family_contacts.
+dashboard/       Next.js + Recharts trend dashboard (call history, transcripts, mood/coherence chart).
 ```
 
 ## Setup — voice backend
@@ -55,13 +55,26 @@ curl -X POST "$PUBLIC_BASE_URL/demo/call" \
   -d '{"phone_number": "+91XXXXXXXXXX"}'
 ```
 
+## Setup — dashboard
+
+```bash
+cd dashboard
+npm install
+cp .env.example .env.local   # fill in NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
+npm run dev
+```
+
+Visit `http://localhost:3000` — it lists parents, and each parent's page shows the mood/coherence trend chart plus a call history list with expandable transcripts and audio playback (when a recording is available).
+
 ## Database
 
-Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor for a fresh project to create the `parents`, `calls`, and `family_contacts` tables.
+1. Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor for a fresh project to create the `parents`, `calls`, and `family_contacts` tables.
+2. New Supabase projects enable automatic Row Level Security on new tables by default, which blocks the backend's `anon`-key access. Since this is a server-only service (the key never reaches a browser), run [`supabase/disable_rls.sql`](supabase/disable_rls.sql) to disable RLS and grant the anon role access instead of writing policies.
+3. Optionally run [`supabase/seed.sql`](supabase/seed.sql) to backfill ~2 weeks of prior check-in history for a parent so the dashboard's trend chart has a baseline before the first live call.
 
 ## Status
 
-Day 1 build in progress. See [`PRD.md`](PRD.md) section 6 for the feature checklist.
+Must-have feature list from the PRD is working end-to-end: outbound call -> conversational check-in -> structured extraction -> Supabase storage -> WhatsApp digest, with rolling-baseline urgent escalation. Dashboard with trend chart, call history, and transcripts is live. Sarvam AI swap for higher-fidelity Hindi/Hinglish TTS is the remaining should-have item. See [`PRD.md`](PRD.md) section 6 for the full feature checklist.
 
 ## Demo video
 

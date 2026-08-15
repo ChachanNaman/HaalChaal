@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import TrendChart from "@/components/TrendChart";
 import CallList from "@/components/CallList";
+import UrgentBanner from "@/components/UrgentBanner";
 import { supabase } from "@/lib/supabase";
 
 export const revalidate = 0;
@@ -20,7 +21,7 @@ export default async function ParentPage(props: PageProps<"/parent/[id]">) {
   const latest = allCalls[allCalls.length - 1];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-6 py-12 text-gray-100">
+    <div className="min-h-screen bg-surface-0 px-6 py-12 text-gray-100">
       <div className="mx-auto max-w-3xl">
         <Link href="/" className="text-sm text-gray-500 hover:text-gray-300">
           &larr; All parents
@@ -32,9 +33,7 @@ export default async function ParentPage(props: PageProps<"/parent/[id]">) {
         </div>
 
         {latest?.flagged_urgent && (
-          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            Most recent call was flagged urgent — {latest.new_complaint ?? "check the transcript below"}.
-          </div>
+          <UrgentBanner message={latest.new_complaint ?? "check the transcript below"} />
         )}
 
         <section className="mt-8">

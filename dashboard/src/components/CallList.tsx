@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import type { Call } from "@/lib/supabase";
 
 function Badge({ children, tone }: { children: React.ReactNode; tone: "green" | "yellow" | "red" | "gray" }) {
@@ -11,7 +12,7 @@ function Badge({ children, tone }: { children: React.ReactNode; tone: "green" | 
     gray: "bg-white/10 text-gray-300 border-white/15",
   };
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
+    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums ${tones[tone]}`}>
       {children}
     </span>
   );
@@ -26,10 +27,10 @@ function CallRow({ call }: { call: Call }) {
   const isSeeded = call.transcript?.startsWith("Seeded historical check-in");
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03]">
+    <div className="material-card overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left"
+        className="press-feedback flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left"
       >
         <span className="text-sm text-gray-300">{date}</span>
         {call.flagged_urgent && <Badge tone="red">Urgent</Badge>}
@@ -43,21 +44,50 @@ function CallRow({ call }: { call: Call }) {
           Medicine: {call.medication_taken}
         </Badge>
         {call.new_complaint && <Badge tone="yellow">{call.new_complaint}</Badge>}
-        <span className="ml-auto text-xs text-gray-500">{open ? "Hide" : "View"} transcript</span>
+        <span className="ml-auto flex items-center gap-1 text-xs text-gray-500">
+          {open ? "Hide" : "View"} transcript
+          <motion.svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ type: "spring", damping: 1, duration: 0.3 }}
+          >
+            <path
+              d="M2 3.5L5 6.5L8 3.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </motion.svg>
+        </span>
       </button>
 
-      {open && (
-        <div className="border-t border-white/10 px-4 py-3">
-          {call.audio_url ? (
-            <audio controls src={call.audio_url} className="mb-3 w-full" />
-          ) : (
-            <p className="mb-3 text-xs italic text-gray-500">
-              {isSeeded ? "Seeded demo entry — no audio recording." : "Audio recording not available for this call."}
-            </p>
-          )}
-          <pre className="whitespace-pre-wrap text-sm text-gray-300">{call.transcript}</pre>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", damping: 1, duration: 0.35 }}
+            className="border-t border-white/10"
+          >
+            <div className="px-4 py-3">
+              {call.audio_url ? (
+                <audio controls src={call.audio_url} className="mb-3 w-full" />
+              ) : (
+                <p className="mb-3 text-xs italic text-gray-500">
+                  {isSeeded ? "Seeded demo entry — no audio recording." : "Audio recording not available for this call."}
+                </p>
+              )}
+              <pre className="whitespace-pre-wrap text-sm text-gray-300">{call.transcript}</pre>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

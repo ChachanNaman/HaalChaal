@@ -24,14 +24,14 @@ export default function TrendChart({ calls }: { calls: Call[] }) {
   }));
 
   return (
-    <div className="h-72 w-full">
+    <div className="material-card h-72 w-full p-4">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
           <XAxis dataKey="date" stroke="#888" fontSize={12} />
           <YAxis domain={[1, 5]} stroke="#888" fontSize={12} allowDecimals={false} />
           <Tooltip
-            contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }}
+            contentStyle={{ background: "var(--surface-2)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8 }}
             labelStyle={{ color: "#ddd" }}
           />
           <Legend />
@@ -39,7 +39,7 @@ export default function TrendChart({ calls }: { calls: Call[] }) {
             type="monotone"
             dataKey="mood"
             name="Mood"
-            stroke="#5eb1ff"
+            stroke="var(--accent)"
             strokeWidth={2}
             dot={{ r: 3 }}
             activeDot={{ r: 5 }}

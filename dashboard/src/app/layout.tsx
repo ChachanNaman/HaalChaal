@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sukoon — Wellness Check-In Dashboard",
+  title: "HaalChaal — Wellness Check-In Dashboard",
   description: "Daily wellness check-in call history and trends.",
 };
 

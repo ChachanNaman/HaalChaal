@@ -17,7 +17,7 @@ class CallSession:
         for m in self.messages:
             if m["role"] == "system":
                 continue
-            speaker = "Parent" if m["role"] == "user" else "Sukoon"
+            speaker = "Parent" if m["role"] == "user" else "HaalChaal"
             lines.append(f"{speaker}: {m['content']}")
         return "\n".join(lines)
 

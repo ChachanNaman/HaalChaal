@@ -1,4 +1,4 @@
--- Sukoon: minimum data model per PRD section 8.
+-- HaalChaal: minimum data model per PRD section 8.
 -- Run this in the Supabase SQL editor for a fresh project.
 
 create extension if not exists "pgcrypto";

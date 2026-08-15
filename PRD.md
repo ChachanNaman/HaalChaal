@@ -1,4 +1,4 @@
-# PRD — Sukoon (working name): Vernacular AI Wellness Check-In Agent for Elderly Parents
+# PRD — HaalChaal (working name): Vernacular AI Wellness Check-In Agent for Elderly Parents
 
 ## 1. One-line pitch
 An AI agent that phones an elderly parent daily like a real person would, speaks their language (Hindi/Hinglish/regional), listens for wellness signals (mood, medication, confusion, new complaints), and sends the family a WhatsApp digest — escalating immediately if something sounds wrong. No app for the parent to install.

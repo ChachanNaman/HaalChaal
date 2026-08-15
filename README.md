@@ -1,10 +1,10 @@
-# Sukoon — Vernacular AI Wellness Check-In Agent
+# HaalChaal — Vernacular AI Wellness Check-In Agent
 
 An AI agent that phones an elderly parent daily like a real person would, speaks their language (Hindi/Hinglish/regional), listens for wellness signals (mood, medication, confusion, new complaints), and sends the family a WhatsApp digest — escalating immediately if something sounds wrong. No app for the parent to install.
 
 ## Why
 
-Adult children — especially NRIs or those living in another city — worry about aging parents living alone but can't call every day themselves. Existing "AI elder check-in" products are English-first, built for the US/EU market, and deliver summaries through their own app or email — not WhatsApp, and not fluent in Indian vernacular or code-switched speech. Sukoon closes that gap for Indian families.
+Adult children — especially NRIs or those living in another city — worry about aging parents living alone but can't call every day themselves. Existing "AI elder check-in" products are English-first, built for the US/EU market, and deliver summaries through their own app or email — not WhatsApp, and not fluent in Indian vernacular or code-switched speech. HaalChaal closes that gap for Indian families.
 
 ## Differentiators
 

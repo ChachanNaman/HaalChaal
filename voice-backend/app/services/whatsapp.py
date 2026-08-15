@@ -44,7 +44,7 @@ def build_digest_message(parent_name: str, signals: CallSignals) -> str:
     if signals.new_complaint:
         lines.append(f"Mentioned: {signals.new_complaint}")
     lines.append("")
-    lines.append("— Sukoon check-in")
+    lines.append("— HaalChaal check-in")
     return "\n".join(lines)
 
 
@@ -66,7 +66,7 @@ def build_urgent_message(parent_name: str, signals: CallSignals, reason: str) ->
         lines.append(f"They mentioned: {signals.new_complaint}")
     lines.append("")
     lines.append("This is a signal to check in or discuss with a doctor, not a diagnosis.")
-    lines.append("— Sukoon check-in")
+    lines.append("— HaalChaal check-in")
     return "\n".join(lines)
 
 

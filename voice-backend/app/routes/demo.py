@@ -1,16 +1,17 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import settings
 from app.models import DemoCallRequest
+from app.security import require_internal_api_key
 from app.services import twilio_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/demo/call")
+@router.post("/demo/call", dependencies=[Depends(require_internal_api_key)])
 async def trigger_demo_call(payload: DemoCallRequest):
     """Kicks off a real outbound call for the demo. Number must be Twilio-verified while on trial."""
     to_number = payload.phone_number or settings.demo_parent_phone_number

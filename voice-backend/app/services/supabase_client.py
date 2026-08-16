@@ -8,15 +8,15 @@ _client: Client | None = None
 def get_client() -> Client:
     global _client
     if _client is None:
-        if not settings.supabase_url or not settings.supabase_anon_key:
-            raise RuntimeError("SUPABASE_URL / SUPABASE_ANON_KEY are not configured")
-        _client = create_client(settings.supabase_url, settings.supabase_anon_key)
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured")
+        _client = create_client(settings.supabase_url, settings.supabase_service_role_key)
     return _client
 
 
 def get_parent(parent_id: str) -> dict | None:
-    res = get_client().table("parents").select("*").eq("id", parent_id).single().execute()
-    return res.data
+    res = get_client().table("parents").select("*").eq("id", parent_id).maybe_single().execute()
+    return res.data if res else None
 
 
 def get_recent_calls(parent_id: str, limit: int = 14) -> list[dict]:

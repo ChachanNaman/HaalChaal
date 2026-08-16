@@ -21,9 +21,17 @@ class Settings:
     whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 
     supabase_url: str = os.getenv("SUPABASE_URL", "")
-    supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
+    # Backend writes are triggered by Twilio webhooks, not a logged-in user, so RLS (which is
+    # scoped to auth.uid()) would block them under the anon key. The service_role key bypasses
+    # RLS entirely -- keep it out of anything shipped to a browser.
+    supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
     demo_parent_phone_number: str = os.getenv("DEMO_PARENT_PHONE_NUMBER", "")
+
+    # Shared secret the dashboard must send to trigger a real (paid) outbound call. Without this,
+    # the publicly deployed /demo/call and /calls/trigger endpoints could be hit by anyone who
+    # finds the URL to place calls at this account's expense.
+    internal_api_key: str = os.getenv("INTERNAL_API_KEY", "")
 
 
 settings = Settings()

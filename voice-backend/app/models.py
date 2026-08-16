@@ -23,3 +23,7 @@ class DemoCallRequest(BaseModel):
     parent_name: Optional[str] = None
     phone_number: Optional[str] = None
     preferred_language: Optional[str] = None
+
+
+class TriggerCallRequest(BaseModel):
+    parent_id: str

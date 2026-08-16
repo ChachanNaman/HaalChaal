@@ -2,6 +2,10 @@
 
 An AI agent that phones an elderly parent daily like a real person would, speaks their language (Hindi/Hinglish/regional), listens for wellness signals (mood, medication, confusion, new complaints), and sends the family a WhatsApp digest — escalating immediately if something sounds wrong. No app for the parent to install.
 
+**Live:**
+- Dashboard: https://dashboard-three-alpha-52.vercel.app
+- Backend API: https://haalchaal-backend-zfzs.onrender.com (free tier — sleeps after inactivity, first request after idle can take ~50s to wake up)
+
 ## Why
 
 Adult children — especially NRIs or those living in another city — worry about aging parents living alone but can't call every day themselves. Existing "AI elder check-in" products are English-first, built for the US/EU market, and deliver summaries through their own app or email — not WhatsApp, and not fluent in Indian vernacular or code-switched speech. HaalChaal closes that gap for Indian families.
@@ -74,7 +78,12 @@ Visit `http://localhost:3000` — it lists parents, and each parent's page shows
 
 ## Status
 
-Must-have feature list from the PRD is working end-to-end: outbound call -> conversational check-in -> structured extraction -> Supabase storage -> WhatsApp digest, with rolling-baseline urgent escalation. Dashboard with trend chart, call history, and transcripts is live. Sarvam AI swap for higher-fidelity Hindi/Hinglish TTS is the remaining should-have item. See [`PRD.md`](PRD.md) section 6 for the full feature checklist.
+Must-have feature list from the PRD is working end-to-end: outbound call -> conversational check-in -> structured extraction -> Supabase storage -> WhatsApp digest, with rolling-baseline urgent escalation. Dashboard with trend chart, call history, and transcripts is live, with visual polish (animations, design tokens) in progress. Both the dashboard (Vercel) and voice backend (Render) are deployed and auto-deploy from `main`. Sarvam AI swap for higher-fidelity Hindi/Hinglish TTS and call recording for audio playback are the remaining should-have items. See [`PRD.md`](PRD.md) section 6 for the full feature checklist and [`HANDOFF.md`](HANDOFF.md) for a more detailed breakdown of what's done vs. open.
+
+### Deployment notes
+- **Dashboard (Vercel)**: root directory is `dashboard/`, env vars `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` set in the Vercel project. Auto-deploys on push to `main`.
+- **Backend (Render)**: root directory is `voice-backend/`, build command `pip install -r requirements.txt`, start command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, health check path `/health`. Python version is pinned via `voice-backend/.python-version` (Render defaults to the newest Python otherwise, which doesn't have prebuilt wheels for some dependencies yet). `PUBLIC_BASE_URL` env var must match the Render-assigned URL exactly, since it's used to build the TwiML callback URL Twilio hits on each conversation turn.
+- **WhatsApp token**: use a permanent System User token (Meta Business Settings -> Users -> System Users -> Generate Token with `whatsapp_business_messaging` + `whatsapp_business_management`), not the 24-hour temporary token from the API Setup quickstart — the temporary one will silently break the WhatsApp digest every day.
 
 ## Demo video
 

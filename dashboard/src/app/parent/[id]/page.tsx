@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import TrendChart from "@/components/TrendChart";
 import CallList from "@/components/CallList";
 import UrgentBanner from "@/components/UrgentBanner";
-import { supabase } from "@/lib/supabase";
+import CallNowButton from "@/components/CallNowButton";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 export const revalidate = 0;
 
 export default async function ParentPage(props: PageProps<"/parent/[id]">) {
   const { id } = await props.params;
+  const supabase = await createServerSupabaseClient();
 
   const [{ data: parent }, { data: calls }] = await Promise.all([
     supabase.from("parents").select("*").eq("id", id).single(),
@@ -30,6 +32,10 @@ export default async function ParentPage(props: PageProps<"/parent/[id]">) {
         <div className="mt-3 flex items-baseline justify-between">
           <h1 className="text-2xl font-semibold tracking-tight">{parent.name}</h1>
           <span className="text-sm text-gray-500">{parent.phone_number}</span>
+        </div>
+
+        <div className="mt-4">
+          <CallNowButton parentId={parent.id} />
         </div>
 
         {latest?.flagged_urgent && (

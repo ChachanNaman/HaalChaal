@@ -5,11 +5,40 @@ from groq import Groq
 
 from app.config import settings
 from app.models import CallSignals
-from app.prompts import EXTRACTION_SYSTEM_PROMPT
+from app.prompts import END_TOKEN, EXTRACTION_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
 _client = Groq(api_key=settings.groq_api_key, timeout=12.0) if settings.groq_api_key else None
+
+
+# Conjunctions the model sometimes uses to join two questions into one sentence with a single
+# trailing "?", which a plain question-mark count doesn't catch (seen in testing, e.g. "...है,
+# और क्या आप...सो पाए?" -- two questions, one "?"). Split on the first of these too.
+_JOIN_WORDS = [" और ", " साथ ही ", " and ", " also "]
+
+
+def _limit_to_one_question(text: str) -> str:
+    """Hard safety net: the system prompt asks for one question per turn, but that's not
+    guaranteed -- if the model still stacks multiple questions, truncate to the first one rather
+    than making an elderly caller parse a run-on multi-part question. Preserves END_TOKEN if
+    present, regardless of where the truncation lands."""
+    has_end_token = END_TOKEN in text
+    body = text.replace(END_TOKEN, "").strip()
+
+    question_marks = [i for i, ch in enumerate(body) if ch == "?"]
+    if len(question_marks) > 1:
+        body = body[: question_marks[0] + 1].strip()
+
+    for join_word in _JOIN_WORDS:
+        idx = body.find(join_word)
+        if idx != -1:
+            body = body[:idx].rstrip(" ,;-—।").strip()
+            if not body.endswith(("?", ".", "!")):
+                body += "?"
+            break
+
+    return f"{body} {END_TOKEN}" if has_end_token else body
 
 
 def get_next_reply(messages: list[dict]) -> str:
@@ -25,7 +54,8 @@ def get_next_reply(messages: list[dict]) -> str:
         extra_body={"reasoning_effort": "low"},
     )
     content = completion.choices[0].message.content
-    return content.strip() if content else ""
+    content = content.strip() if content else ""
+    return _limit_to_one_question(content)
 
 
 def extract_signals(transcript: str) -> CallSignals:

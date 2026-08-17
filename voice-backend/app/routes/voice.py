@@ -5,14 +5,13 @@ from twilio.twiml.voice_response import Gather, VoiceResponse
 
 from app.config import settings
 from app.conversation_state import CallSession, create_session, get_session, pop_session
-from app.prompts import CONVERSATION_SYSTEM_PROMPT, OPENING_GREETING_TEMPLATE, build_custom_questions_section
+from app.prompts import CONVERSATION_SYSTEM_PROMPT, END_TOKEN, OPENING_GREETING_TEMPLATE, build_custom_questions_section
 from app.services import audio_cache, llm, sarvam, supabase_client, twilio_client
 from app.services.pipeline import run_post_call_pipeline
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-END_TOKEN = "[END_CALL]"
 MAX_SILENT_RETRIES = 2
 GATHER_ACTION_URL = f"{settings.public_base_url}/voice/gather"
 RECORD_ACTION_URL = f"{settings.public_base_url}/voice/record"

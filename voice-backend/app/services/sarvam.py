@@ -43,7 +43,7 @@ def synthesize_speech(text: str, language: str) -> bytes | None:
                 "model": "bulbul:v2",
                 "speech_sample_rate": 8000,
             },
-            timeout=8,
+            timeout=5,
         )
         resp.raise_for_status()
         data = resp.json()

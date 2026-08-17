@@ -80,7 +80,10 @@ def _prompt_response(prompt_text: str, language: str) -> VoiceResponse:
             action=GATHER_ACTION_URL,
             method="POST",
             language=language,
-            speech_timeout="auto",
+            # "auto" lets Twilio wait several seconds of trailing silence before it even sends
+            # us the speech, on top of our own processing time -- a fixed, shorter value cuts
+            # that dead air noticeably without cutting off a normal-paced answer.
+            speech_timeout="2",
             speech_model="phone_call",
         )
         _add_speech(gather, prompt_text, language)

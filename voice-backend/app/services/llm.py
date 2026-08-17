@@ -11,6 +11,12 @@ logger = logging.getLogger(__name__)
 
 _client = Groq(api_key=settings.groq_api_key, timeout=12.0) if settings.groq_api_key else None
 
+# Live conversation turns use a smaller/faster model than settings.groq_model (used for
+# post-call extraction, where quality matters more and latency doesn't) -- every turn happens
+# while the caller is waiting on the phone, so shaving response time here matters more than for
+# the extraction call that runs after they've already hung up.
+CONVERSATION_MODEL = "openai/gpt-oss-20b"
+
 
 # Conjunctions the model sometimes uses to join two questions into one sentence with a single
 # trailing "?", which a plain question-mark count doesn't catch (seen in testing, e.g. "...है,
@@ -47,7 +53,7 @@ def get_next_reply(messages: list[dict]) -> str:
         raise RuntimeError("GROQ_API_KEY is not configured")
 
     completion = _client.chat.completions.create(
-        model=settings.groq_model,
+        model=CONVERSATION_MODEL,
         messages=messages,
         temperature=0.6,
         max_tokens=300,

@@ -9,7 +9,7 @@ from app.prompts import EXTRACTION_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
-_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+_client = Groq(api_key=settings.groq_api_key, timeout=12.0) if settings.groq_api_key else None
 
 
 def get_next_reply(messages: list[dict]) -> str:
@@ -24,7 +24,8 @@ def get_next_reply(messages: list[dict]) -> str:
         max_tokens=300,
         extra_body={"reasoning_effort": "low"},
     )
-    return completion.choices[0].message.content.strip()
+    content = completion.choices[0].message.content
+    return content.strip() if content else ""
 
 
 def extract_signals(transcript: str) -> CallSignals:

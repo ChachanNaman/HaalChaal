@@ -100,24 +100,41 @@ def _end_call_response(closing_text: str, language: str) -> VoiceResponse:
     return vr
 
 
+def _crash_fallback_response(language: str = "en-IN") -> Response:
+    """Last-resort safety net: if anything in a turn raises an unhandled exception, return a
+    plain, always-valid TwiML apology instead of a raw 500. An uncaught exception previously
+    meant FastAPI returned an error page Twilio couldn't parse as TwiML, which likely explains
+    "could not reach server" mid-call -- this uses Twilio's own Say only (no Sarvam/Groq calls)
+    so the fallback itself can't also fail."""
+    vr = VoiceResponse()
+    text = "माफ़ कीजिए, कुछ गड़बड़ हो गई। मैं बाद में फिर से call करूँगी।" if language == "hi-IN" else "Sorry, something went wrong. I'll call again later."
+    vr.say(text, language=language, voice=_voice_for_language(language))
+    vr.hangup()
+    return Response(content=str(vr), media_type="application/xml")
+
+
 @router.post("/voice")
 def voice_webhook(To: str = Form(...), From: str = Form(...), CallSid: str = Form(...)):
     """Twilio hits this when the outbound call is answered. Starts the turn-based conversation
     loop (ConversationRelay requires a paid Twilio account, so we use classic speech verbs)."""
-    parent = _lookup_parent_by_phone(To)
-    parent_name = parent["name"] if parent else "there"
-    parent_id = parent["id"] if parent else ""
-    preferred_language = (parent or {}).get("preferred_language", "hi-en")
-    language = _language_code(preferred_language)
+    try:
+        parent = _lookup_parent_by_phone(To)
+        parent_name = parent["name"] if parent else "there"
+        parent_id = parent["id"] if parent else ""
+        preferred_language = (parent or {}).get("preferred_language", "hi-en")
+        language = _language_code(preferred_language)
 
-    custom_questions_section = build_custom_questions_section((parent or {}).get("custom_questions"))
-    system_prompt = CONVERSATION_SYSTEM_PROMPT.format(parent_name=parent_name, custom_questions_section=custom_questions_section)
-    session = create_session(CallSid, parent_id or None, parent_name, To, system_prompt, language)
+        custom_questions_section = build_custom_questions_section((parent or {}).get("custom_questions"))
+        system_prompt = CONVERSATION_SYSTEM_PROMPT.format(parent_name=parent_name, custom_questions_section=custom_questions_section)
+        session = create_session(CallSid, parent_id or None, parent_name, To, system_prompt, language)
 
-    greeting = OPENING_GREETING_TEMPLATE.format(parent_name=parent_name)
-    session.messages.append({"role": "assistant", "content": greeting})
+        greeting = OPENING_GREETING_TEMPLATE.format(parent_name=parent_name)
+        session.messages.append({"role": "assistant", "content": greeting})
 
-    return Response(content=str(_prompt_response(greeting, language)), media_type="application/xml")
+        return Response(content=str(_prompt_response(greeting, language)), media_type="application/xml")
+    except Exception:
+        logger.exception("Unhandled error in /voice for call %s", CallSid)
+        return _crash_fallback_response()
 
 
 def _handle_turn(session: CallSession, spoken_text: str) -> VoiceResponse:
@@ -167,8 +184,15 @@ def voice_gather(
         vr.hangup()
         return Response(content=str(vr), media_type="application/xml")
 
-    response = _handle_turn(session, SpeechResult)
-    return Response(content=str(response), media_type="application/xml")
+    try:
+        response = _handle_turn(session, SpeechResult)
+        return Response(content=str(response), media_type="application/xml")
+    except Exception:
+        logger.exception("Unhandled error in /voice/gather for call %s", CallSid)
+        # Salvage whatever the call captured so far instead of losing the transcript/digest
+        # entirely -- _finish_call's own pipeline call is already exception-safe.
+        _finish_call(session)
+        return _crash_fallback_response(session.language)
 
 
 @router.post("/voice/record")
@@ -185,14 +209,19 @@ def voice_record(
         vr.hangup()
         return Response(content=str(vr), media_type="application/xml")
 
-    transcript = None
-    if RecordingUrl:
-        audio_bytes = twilio_client.download_recording_wav(RecordingUrl)
-        if audio_bytes:
-            transcript = sarvam.transcribe_audio(audio_bytes, session.language)
+    try:
+        transcript = None
+        if RecordingUrl:
+            audio_bytes = twilio_client.download_recording_wav(RecordingUrl)
+            if audio_bytes:
+                transcript = sarvam.transcribe_audio(audio_bytes, session.language)
 
-    response = _handle_turn(session, transcript or "")
-    return Response(content=str(response), media_type="application/xml")
+        response = _handle_turn(session, transcript or "")
+        return Response(content=str(response), media_type="application/xml")
+    except Exception:
+        logger.exception("Unhandled error in /voice/record for call %s", CallSid)
+        _finish_call(session)
+        return _crash_fallback_response(session.language)
 
 
 @router.post("/voice/recording-callback")

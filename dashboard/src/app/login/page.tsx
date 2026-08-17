@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
+import { SPRING } from "@/lib/motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +34,12 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-0 px-6 text-gray-100">
-      <div className="material-card w-full max-w-sm p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={SPRING}
+        className="material-card w-full max-w-sm p-6"
+      >
         <h1 className="text-xl font-semibold tracking-tight">Log in to HaalChaal</h1>
         <p className="mt-1 text-sm text-gray-400">Check in on your parents' daily wellness.</p>
 
@@ -43,7 +50,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-white/10 bg-surface-2/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent"
           />
           <input
             type="password"
@@ -51,13 +58,13 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-white/10 bg-surface-2/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent"
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="press-feedback mt-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-black disabled:opacity-50"
+            className="press-feedback mt-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-black transition-opacity disabled:opacity-50"
           >
             {loading ? "Logging in…" : "Log in"}
           </button>
@@ -69,7 +76,7 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
+import { SPRING } from "@/lib/motion";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -41,7 +43,12 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-0 px-6 text-gray-100">
-      <div className="material-card w-full max-w-sm p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={SPRING}
+        className="material-card w-full max-w-sm p-6"
+      >
         <h1 className="text-xl font-semibold tracking-tight">Create your account</h1>
         <p className="mt-1 text-sm text-gray-400">
           You'll register your parent's number after signing up.
@@ -54,7 +61,7 @@ export default function SignupPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-white/10 bg-surface-2/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent"
           />
           <input
             type="password"
@@ -63,14 +70,14 @@ export default function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-white/10 bg-surface-2/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent"
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
           {message && <p className="text-sm text-emerald-400">{message}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="press-feedback mt-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-black disabled:opacity-50"
+            className="press-feedback mt-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-black transition-opacity disabled:opacity-50"
           >
             {loading ? "Creating account…" : "Sign up"}
           </button>
@@ -82,7 +89,7 @@ export default function SignupPage() {
             Log in
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

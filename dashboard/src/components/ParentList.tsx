@@ -8,8 +8,8 @@ import { SPRING } from "@/lib/motion";
 export default function ParentList({ parents }: { parents: Parent[] }) {
   if (parents.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
-        No parents yet — add one to the <code>parents</code> table in Supabase.
+      <p className="mt-8 text-sm text-gray-500">
+        No parents registered yet — use "Register a parent" above to add one.
       </p>
     );
   }

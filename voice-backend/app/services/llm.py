@@ -21,7 +21,8 @@ def get_next_reply(messages: list[dict]) -> str:
         model=settings.groq_model,
         messages=messages,
         temperature=0.6,
-        max_tokens=200,
+        max_tokens=300,
+        extra_body={"reasoning_effort": "low"},
     )
     return completion.choices[0].message.content.strip()
 
@@ -37,7 +38,8 @@ def extract_signals(transcript: str) -> CallSignals:
             {"role": "user", "content": f"Transcript:\n\n{transcript}"},
         ],
         temperature=0,
-        max_tokens=400,
+        max_tokens=600,
+        extra_body={"reasoning_effort": "low"},
         response_format={"type": "json_object"},
     )
     raw = completion.choices[0].message.content

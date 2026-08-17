@@ -13,7 +13,9 @@ class Settings:
     public_base_url: str = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
-    groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    # llama-3.3-70b-versatile was deprecated/removed from Groq's lineup; gpt-oss-120b is the
+    # current equivalent flagship model (also listed as an acceptable option in the PRD).
+    groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     sarvam_api_key: str = os.getenv("SARVAM_API_KEY", "")
 

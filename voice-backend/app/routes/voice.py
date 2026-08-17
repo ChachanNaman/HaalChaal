@@ -5,7 +5,7 @@ from twilio.twiml.voice_response import Gather, VoiceResponse
 
 from app.config import settings
 from app.conversation_state import CallSession, create_session, get_session, pop_session
-from app.prompts import CONVERSATION_SYSTEM_PROMPT, OPENING_GREETING_TEMPLATE
+from app.prompts import CONVERSATION_SYSTEM_PROMPT, OPENING_GREETING_TEMPLATE, build_custom_questions_section
 from app.services import audio_cache, llm, sarvam, supabase_client, twilio_client
 from app.services.pipeline import run_post_call_pipeline
 
@@ -109,7 +109,8 @@ async def voice_webhook(To: str = Form(...), From: str = Form(...), CallSid: str
     preferred_language = (parent or {}).get("preferred_language", "hi-en")
     language = _language_code(preferred_language)
 
-    system_prompt = CONVERSATION_SYSTEM_PROMPT.format(parent_name=parent_name)
+    custom_questions_section = build_custom_questions_section((parent or {}).get("custom_questions"))
+    system_prompt = CONVERSATION_SYSTEM_PROMPT.format(parent_name=parent_name, custom_questions_section=custom_questions_section)
     session = create_session(CallSid, parent_id or None, parent_name, To, system_prompt, language)
 
     greeting = OPENING_GREETING_TEMPLATE.format(parent_name=parent_name)

@@ -10,6 +10,7 @@ export type Parent = {
   name: string;
   phone_number: string;
   preferred_language: string;
+  custom_questions: string | null;
   created_at: string;
 };
 

@@ -11,9 +11,17 @@ Rules:
   3. Anything new or worrying (pain, dizziness, falls, appetite/sleep changes, anything unusual).
   4. How they slept and whether they've been eating normally.
 - Do not ask these as a rigid checklist. Weave them into a real conversation, follow up on what they say, and only move to the next topic once the current one feels answered.
-- If they mention anything alarming (chest pain, a fall, severe dizziness, confusion, "can't breathe", suicidal language), stay calm, show concern, gently probe for more detail, and reassure them someone will follow up soon. Do not try to give medical advice.
+{custom_questions_section}- If they mention anything alarming (chest pain, a fall, severe dizziness, confusion, "can't breathe", suicidal language), stay calm, show concern, gently probe for more detail, and reassure them someone will follow up soon. Do not try to give medical advice.
 - After you've naturally covered all four topics (usually 5-8 turns), thank them warmly and end the call with a short, affectionate goodbye. When you are ready to end the call, include the exact token [END_CALL] at the very end of your final message (it will not be spoken).
 - Never mention that you are an AI, a bot, or that this call is being analyzed."""
+
+def build_custom_questions_section(custom_questions: str | None) -> str:
+    """Lets a family add extra things to ask about beyond the default topics (nice-to-have from
+    the PRD). Returns an empty string (no-op) if the family didn't set anything."""
+    if not custom_questions or not custom_questions.strip():
+        return ""
+    return f"- The family also asked you to naturally check on this, woven into the conversation like the other topics: {custom_questions.strip()}\n"
+
 
 OPENING_GREETING_TEMPLATE = (
     "नमस्ते {parent_name} जी! मैं आपके घर से check-in कर रही हूँ। "

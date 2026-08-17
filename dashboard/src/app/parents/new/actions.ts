@@ -17,6 +17,7 @@ export async function addParent(_prevState: AddParentState, formData: FormData):
   const phoneNumber = String(formData.get("phone_number") ?? "").trim();
   const preferredLanguage = String(formData.get("preferred_language") ?? "hi-en");
   const whatsappNumber = String(formData.get("whatsapp_number") ?? "").trim();
+  const customQuestions = String(formData.get("custom_questions") ?? "").trim();
 
   if (!name || !phoneNumber || !whatsappNumber) {
     return { error: "Name, phone number, and WhatsApp number are all required." };
@@ -24,7 +25,13 @@ export async function addParent(_prevState: AddParentState, formData: FormData):
 
   const { data: parent, error: parentError } = await supabase
     .from("parents")
-    .insert({ name, phone_number: phoneNumber, preferred_language: preferredLanguage, user_id: user.id })
+    .insert({
+      name,
+      phone_number: phoneNumber,
+      preferred_language: preferredLanguage,
+      custom_questions: customQuestions || null,
+      user_id: user.id,
+    })
     .select()
     .single();
 

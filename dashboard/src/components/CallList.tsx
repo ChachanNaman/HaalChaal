@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Call } from "@/lib/supabase";
 import { SPRING } from "@/lib/motion";
+import TranscriptView from "./TranscriptView";
 
 function Badge({ children, tone }: { children: React.ReactNode; tone: "green" | "yellow" | "red" | "gray" }) {
   const tones: Record<string, string> = {
@@ -84,7 +85,7 @@ function CallRow({ call }: { call: Call }) {
                   {isSeeded ? "Seeded demo entry — no audio recording." : "Audio recording not available for this call."}
                 </p>
               )}
-              <pre className="whitespace-pre-wrap text-sm text-gray-300">{call.transcript}</pre>
+              {call.transcript && <TranscriptView transcript={call.transcript} />}
             </div>
           </motion.div>
         )}

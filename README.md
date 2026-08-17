@@ -79,7 +79,8 @@ Run these in order in the Supabase SQL editor for a fresh project:
 2. [`supabase/migrations/0002_multi_user_auth.sql`](supabase/migrations/0002_multi_user_auth.sql) — per-user ownership + RLS policies.
 3. [`supabase/migrations/0003_call_recording.sql`](supabase/migrations/0003_call_recording.sql) — adds `call_sid` to `calls` for matching recordings back to a call.
 4. [`supabase/migrations/0004_custom_questions.sql`](supabase/migrations/0004_custom_questions.sql) — adds `custom_questions` to `parents`.
-5. After any of the above, run `NOTIFY pgrst, 'reload schema';` (PostgREST's schema cache can go stale after an `ALTER TABLE`) and make sure the `authenticated` and `service_role` Postgres roles both have `GRANT`s on all three tables — RLS policies alone aren't enough, the base grant is a separate requirement.
+5. [`supabase/migrations/0005_phone_number_unique_per_user.sql`](supabase/migrations/0005_phone_number_unique_per_user.sql) — scopes `phone_number` uniqueness to per-user instead of global, so different users (or the same person's different demo accounts) can register the same number.
+6. After any of the above, run `NOTIFY pgrst, 'reload schema';` (PostgREST's schema cache can go stale after an `ALTER TABLE`) and make sure the `authenticated` and `service_role` Postgres roles both have `GRANT`s on all three tables — RLS policies alone aren't enough, the base grant is a separate requirement.
 6. Optionally run [`supabase/seed.sql`](supabase/seed.sql) to backfill ~2 weeks of prior check-in history for a parent so the dashboard's trend chart has a baseline before the first live call.
 
 (`supabase/disable_rls.sql` documents the older single-tenant, no-auth approach; superseded now.)

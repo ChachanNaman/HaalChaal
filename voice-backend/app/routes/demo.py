@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/demo/call", dependencies=[Depends(require_internal_api_key)])
-async def trigger_demo_call(payload: DemoCallRequest):
+def trigger_demo_call(payload: DemoCallRequest):
     """Kicks off a real outbound call for the demo. Number must be Twilio-verified while on trial."""
     to_number = payload.phone_number or settings.demo_parent_phone_number
     if not to_number:

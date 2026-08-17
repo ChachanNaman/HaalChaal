@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.get("/tts-audio/{audio_id}")
-async def get_tts_audio(audio_id: str):
+def get_tts_audio(audio_id: str):
     """Serves a Sarvam-synthesized reply so Twilio's <Play> can fetch it by URL (TwiML can't
     embed audio bytes inline)."""
     data = audio_cache.get(audio_id)
@@ -19,7 +19,7 @@ async def get_tts_audio(audio_id: str):
 
 
 @router.get("/recordings/{recording_sid}")
-async def get_recording(recording_sid: str):
+def get_recording(recording_sid: str):
     """Proxies a finished call recording from Twilio so the dashboard's <audio> tag can play it
     without needing Twilio Basic Auth credentials in the browser."""
     try:

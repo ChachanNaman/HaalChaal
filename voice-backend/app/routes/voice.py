@@ -101,7 +101,7 @@ def _end_call_response(closing_text: str, language: str) -> VoiceResponse:
 
 
 @router.post("/voice")
-async def voice_webhook(To: str = Form(...), From: str = Form(...), CallSid: str = Form(...)):
+def voice_webhook(To: str = Form(...), From: str = Form(...), CallSid: str = Form(...)):
     """Twilio hits this when the outbound call is answered. Starts the turn-based conversation
     loop (ConversationRelay requires a paid Twilio account, so we use classic speech verbs)."""
     parent = _lookup_parent_by_phone(To)
@@ -155,7 +155,7 @@ def _handle_turn(session: CallSession, spoken_text: str) -> VoiceResponse:
 
 
 @router.post("/voice/gather")
-async def voice_gather(
+def voice_gather(
     CallSid: str = Form(...),
     SpeechResult: str = Form(default=""),
 ):
@@ -172,7 +172,7 @@ async def voice_gather(
 
 
 @router.post("/voice/record")
-async def voice_record(
+def voice_record(
     CallSid: str = Form(...),
     RecordingUrl: str = Form(default=""),
 ):
@@ -196,7 +196,7 @@ async def voice_record(
 
 
 @router.post("/voice/recording-callback")
-async def recording_callback(
+def recording_callback(
     CallSid: str = Form(...),
     RecordingSid: str = Form(default=""),
     RecordingStatus: str = Form(default=""),

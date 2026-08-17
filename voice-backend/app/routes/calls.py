@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("/calls/trigger", dependencies=[Depends(require_internal_api_key)])
-async def trigger_call(payload: TriggerCallRequest):
+def trigger_call(payload: TriggerCallRequest):
     """Places a real outbound call to a specific parent by id. Called by the dashboard's
     "Call now" button, authenticated with the internal API key (not a public endpoint)."""
     parent = supabase_client.get_parent(payload.parent_id)

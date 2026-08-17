@@ -1,67 +1,94 @@
 # Handoff notes
 
-Status as of Day 2 (Aug 16, 2026) of the 7-day hackathon window. Read [`PRD.md`](PRD.md) first if you haven't — everything below assumes that context.
+Status as of Day 3 (Aug 17, 2026) of the 7-day hackathon window. Read [`PRD.md`](PRD.md) first if you haven't — everything below assumes that context.
 
-## What's done and verified live
+## Full PRD checklist (section 6) — status
 
-**Must-haves (PRD section 6) — all working end-to-end:**
-- Outbound call via Twilio, answered call runs a real conversational loop.
-- STT → LLM → TTS working live in Hindi/Hinglish (and English) — tested with real phone calls, not just unit-level.
-- Post-call structured extraction (`mood_score`, `coherence_score`, `medication_taken`, `new_complaint`, `flagged_urgent`) via Groq, strict JSON.
-- Transcript + structured result stored in Supabase after every call.
-- WhatsApp digest sent after each call, via WhatsApp Cloud API — confirmed delivered to a real WhatsApp chat.
-- Escalation: rolling baseline comparison (mood/coherence drop, missed-medication streak, urgent keywords) triggers an urgent WhatsApp alert instead of the normal digest — tested live by mentioning chest pain on a call, correctly triggered.
+**Must-haves — all done, verified live:**
+- ✅ Outbound Twilio call, real conversational loop.
+- ✅ STT → LLM → TTS, live, Hindi/Hinglish and English.
+- ✅ Post-call structured extraction (mood/coherence/medication/complaint/urgent), Groq, strict JSON.
+- ✅ Transcript + structured result stored in Supabase after every call.
+- ✅ WhatsApp digest after each call.
+- ✅ Rolling-baseline urgent escalation (mood/coherence drop, missed-medication streak, urgent keywords), separate from the normal digest.
 
-**Should-haves — partially done:**
-- ✅ Trend dashboard (Next.js + Recharts): mood/coherence line chart, seeded ~2-week history, urgent-call banner, expandable transcripts.
-- ❌ **Sarvam AI swap not done yet.** Hindi/Hinglish currently works via Twilio's built-in speech recognition + Google WaveNet TTS (see "Known gaps" below) — good quality, but not what the PRD names as the actual differentiator. This is the top-priority remaining item.
-- ⚠️ Transcript viewer done, audio playback is not — see gaps below.
+**Should-haves — all done:**
+- ✅ **Sarvam AI Saarika (STT) + Bulbul (TTS)** — the PRD's actual differentiator. Verified the exact request/response contract directly against Sarvam's live API (see "How Sarvam is wired in" below) before wiring it into the call flow. Falls back to Twilio's native Gather/Say on any Sarvam failure, so an API hiccup never breaks a live call.
+- ✅ Trend dashboard (Next.js + Recharts): mood/coherence chart, seeded history, urgent banner, transcripts.
+- ✅ Transcript viewer, now with chat-bubble rendering and an Original/English toggle (translated on demand via Groq).
+- ⚠️ Audio playback: fully wired (recording, storage, authenticated proxy route), but Twilio trial accounts reject the `record=True` REST parameter outright ("Invalid or disallowed parameters"). The code detects this and falls back to placing the call without recording rather than failing it, so `audio_url` stays `null` on trial. Will start working with zero code changes if the Twilio account is ever upgraded.
 
-**Beyond the PRD — multi-user auth (Day 2):** the dashboard is now multi-tenant. Users sign up/log in with Supabase Auth (email/password), register their own parent + family WhatsApp number at `/parents/new`, and only ever see their own parent(s) and call history — enforced by real RLS policies (`supabase/migrations/0002_multi_user_auth.sql`), not just app-level filtering. There's a "Call now" button that triggers a real call on demand via a new backend endpoint. This wasn't in the original PRD scope but was worth doing now since it also fixed the RLS security gap noted below.
+**Nice-to-haves — all done:**
+- ✅ Multiple parent profiles (via the multi-user auth work).
+- ✅ Configurable check-in questions per family (`custom_questions` field on `parents`, woven into the system prompt).
+- ✅ SMS fallback if WhatsApp delivery fails (Twilio SMS, same trial-verification caveat applies).
+
+**Explicitly out of scope (per the PRD) — correctly excluded:** no diagnosis claims anywhere in the extraction/messaging copy, no payment flows, trial-only phone number handling is treated as an accepted limitation throughout.
+
+**Beyond the PRD scope — multi-user auth (Day 2):** the dashboard is multi-tenant. Users sign up/log in (Supabase Auth), register their own parent + family WhatsApp number at `/parents/new`, and only ever see their own data — enforced by RLS (`supabase/migrations/0002_multi_user_auth.sql`). A "Call now" button triggers a real call on demand.
+
+**What genuinely couldn't be finished without a human's direct involvement** (not a shortcut — these require things only a person can do):
+- **Demo video** — needs an actual recording session with a real phone call happening on camera per the PRD's script (section 10).
+- **Devpost submission form** — needs your team's own account, bios, and answers to submission questions.
+- **Twilio account upgrade** — a financial decision; would unlock ConversationRelay and call recording, currently both blocked on trial.
+- **Meta business verification** — Meta's own 2-10 day external document review process; would remove the WhatsApp test-mode recipient restriction.
 
 **Repo hygiene:** public GitHub repo, MIT license, incremental commits with descriptive messages, no AI attribution anywhere (per PRD section 11 — keep it that way in any commits you make too).
 
 ## Architecture, quickly
 
 ```
-voice-backend/   FastAPI (Python). Twilio call handling, Groq conversation + extraction,
-                 escalation logic, WhatsApp delivery. Deployed on Render, uses the
-                 service_role Supabase key (bypasses RLS -- it writes from webhooks,
-                 not a logged-in user). Auth-gated with INTERNAL_API_KEY.
+voice-backend/   FastAPI (Python). Twilio call handling, Sarvam STT/TTS (with Twilio-native
+                 fallback), Groq conversation + extraction, escalation logic, WhatsApp+SMS
+                 delivery. Deployed on Render, uses the service_role Supabase key (bypasses
+                 RLS -- writes from webhooks, not a logged-in user). Auth-gated with
+                 INTERNAL_API_KEY on every endpoint that places a real call.
 dashboard/       Next.js 16 (App Router) + Tailwind + Recharts + Supabase Auth (@supabase/ssr).
-                 Deployed on Vercel. Server components/actions use the auth-aware client
-                 in src/lib/supabase-server.ts; the browser client is in supabase-browser.ts.
+                 Deployed on Vercel. Server components/actions use the auth-aware client in
+                 src/lib/supabase-server.ts; the browser client is in supabase-browser.ts.
                  middleware.ts protects every route except /login and /signup.
-supabase/        schema.sql + migrations/0002_multi_user_auth.sql (tables + RLS policies),
-                 seed.sql (demo history). disable_rls.sql is superseded, kept for reference.
+supabase/        schema.sql + migrations/000{2,3,4}_*.sql (auth/RLS, call recording, custom
+                 questions), seed.sql (demo history). disable_rls.sql is superseded, kept for
+                 reference.
 ```
 
 Full setup steps are in [`README.md`](README.md) — don't duplicate them here, just run it.
 
+## How Sarvam is wired in (read this before touching voice.py)
+
+`app/services/sarvam.py` has two functions, both defensive (return `None` on any failure instead of raising):
+
+- `synthesize_speech(text, language)` — Bulbul TTS. Confirmed live: `POST https://api.sarvam.ai/text-to-speech`, header `api-subscription-key`, body `{"inputs": [text], "target_language_code": "hi-IN"|"en-IN", "speaker": "anushka", "model": "bulbul:v2", "speech_sample_rate": 8000}`, response `{"audios": ["<base64 wav>"]}`. Returns valid 8kHz mono PCM WAV, which is exactly what Twilio's `<Play>` wants.
+- `transcribe_audio(audio_bytes, language)` — Saarika STT. Confirmed live: `POST https://api.sarvam.ai/speech-to-text`, multipart `file` + `model=saarika:v2.5` + `language_code`, response `{"transcript": "..."}`. Round-tripped a synthesized phrase back to the exact original text in testing.
+
+Since TwiML's `<Play>` needs a URL (not inline bytes), synthesized audio is cached in-memory (`app/services/audio_cache.py`) and served at `GET /tts-audio/{id}` — one-shot, not persisted, fine for a live call.
+
+Since `<Gather>`'s built-in recognizer only works with Twilio's own STT, using Sarvam for STT means using `<Record>` instead: speak the prompt, record a short clip, POST to `/voice/record`, download the clip, transcribe it, feed the result into the same turn-handling logic (`_handle_turn` in `voice.py`) that the Twilio-native `/voice/gather` path also uses. An empty/failed transcription is treated exactly like silence, reusing the existing retry logic rather than needing a separate failure path.
+
+**Not yet verified**: the actual `<Play>`/`<Record>` behavior on a real live phone call end-to-end (the HTTP-level Sarvam contract is confirmed correct, but Twilio fetching the `/tts-audio/{id}` URL and correctly triggering `/voice/record` needs a real answered call to fully confirm). Place a test call and listen -- if Sarvam's voice doesn't come through or a turn silently fails, check Render's logs first (every Sarvam call logs the exception on failure), then compare against Sarvam's current docs in case a field name has drifted.
+
 ## Known gaps / things to be careful about
 
-1. **Twilio ConversationRelay doesn't work on trial accounts.** We originally built the voice loop on ConversationRelay (real-time streaming STT/TTS) per the PRD's architecture table, but Twilio silently hangs up after ~3 seconds on trial accounts (premium feature gate). We switched to classic `<Gather>`/`<Say>` (turn-based, not streaming) — it works fine and sounds natural on a phone call, but it's not literally what the PRD's architecture section describes. If anyone upgrades the Twilio account later, ConversationRelay could be revisited for lower-latency, more interruptible conversation — but it's not necessary for the demo.
-2. **No call recording yet**, so `audio_url` in the `calls` table is always `null`. The dashboard's audio player UI already handles this gracefully (shows "Audio recording not available" instead of a broken player), but wiring up Twilio call recording + a way to serve the audio (Twilio recordings need authenticated access, so it'd need a backend proxy route, not a direct `<audio src>` to Twilio's URL) is still open.
-3. **RLS is now properly enabled** (fixed on Day 2 — see the auth section above). One gotcha if you're touching Supabase directly: enabling RLS and writing `CREATE POLICY` statements is not enough on its own — the underlying Postgres role also needs a base `GRANT` on the table, or you'll hit `permission denied for table X` before RLS even gets evaluated. We had to explicitly `GRANT ... TO authenticated` (for the dashboard's logged-in users) and `GRANT ... TO service_role` (for the backend) in addition to the RLS policies. Also: after any `ALTER TABLE` via the SQL editor, PostgREST's schema cache can go stale (`Could not find the 'x' column in the schema cache` even though the column exists) — run `NOTIFY pgrst, 'reload schema';` to fix it.
-4. **Occasional script-mixing glitch**: saw one instance of the LLM producing a word half in Devanagari half in Latin script mid-reply (e.g. "हaha"). Rare, non-blocking, but worth keeping an eye on if it recurs — might need a stronger instruction or a post-processing pass in `prompts.py` / `services/llm.py`.
-5. **Deployed as of Day 2**: dashboard on Vercel (auto-deploys on push to `main`, root directory `dashboard/`), backend on Render (auto-deploys on push to `main`, root directory `voice-backend/`, free tier so it sleeps after inactivity — first request after idle takes ~50s). URLs are in the README. Use the **permanent** WhatsApp System User token, not the 24-hour temporary one from the API Setup quickstart — the temporary token already broke the digest once after expiring overnight.
-6. **WhatsApp test-mode recipient limit**: the WhatsApp number is still in Meta's "test mode," which means every recipient must be manually added and OTP-verified through Meta's own console (Developers -> App -> WhatsApp -> API Setup) before they can receive anything — there's no API to do this programmatically, it's an anti-abuse control on Meta's side. So when a user registers a new parent through the dashboard, the family WhatsApp number they enter **will not actually receive digests** until someone manually adds + verifies it in Meta's console. The dashboard doesn't warn about this yet. Real fix is pursuing Meta business verification (Step 3 in their WhatsApp setup flow), which removes the restriction entirely — not done, decided to punt on it for now.
-7. **Twilio verified-caller limit applies per parent too**: same trial restriction as before, now surfaced through the "Call now" button — registering a parent with an unverified number gives a clear 422 error ("No Twilio trial phone number is assigned... add as a verified recipient"). Same fix as always: Twilio Console -> Phone Numbers -> Verified Caller IDs.
+1. **Twilio ConversationRelay doesn't work on trial accounts** (premium feature gate, hangs up after ~3s) — using `<Gather>`/`<Record>` + `<Say>`/`<Play>` instead, which works fine.
+2. **Call recording blocked on trial** — see should-haves section above. `record=True` on `Calls.create` gets rejected outright; the code catches this and retries without it.
+3. **RLS + GRANT gotcha**: `CREATE POLICY` is not enough on its own — the underlying Postgres role also needs a base `GRANT` on the table (`GRANT ... TO authenticated` and `GRANT ... TO service_role`), or you'll hit `permission denied for table X` before RLS even evaluates. Also: after any `ALTER TABLE` via the SQL editor, PostgREST's schema cache can go stale (`Could not find the 'x' column in the schema cache` even though the column exists) — run `NOTIFY pgrst, 'reload schema';` to fix it.
+4. **Groq deprecates models without much warning** — `llama-3.3-70b-versatile` (originally used, and what the PRD names) was removed from Groq's lineup entirely partway through the hackathon, breaking every call with a 404. Now on `openai/gpt-oss-120b`. If this happens again, `GROQ_MODEL` is one env var away from a fix (check `curl https://api.groq.com/openai/v1/models` with your key for what's currently available). Note `gpt-oss` models reason before answering and will return **empty content** if `max_tokens` is too small for the reasoning + the actual reply -- pass `extra_body={"reasoning_effort": "low"}` (the pinned `groq` SDK version doesn't have this as a typed parameter) to keep replies fast and non-empty.
+5. **Occasional script-mixing glitch**: saw one instance of the LLM producing a word half in Devanagari half in Latin script mid-reply (e.g. "हaha"). Rare, non-blocking.
+6. **Deployed**: dashboard on Vercel, backend on Render, both auto-deploy from `main`. URLs in the README. Backend free tier sleeps after inactivity — wake it before a demo. Use the **permanent** WhatsApp System User token, not the 24h temporary one.
+7. **WhatsApp test-mode recipient limit**: every recipient (including numbers entered when registering a parent) must be manually added and OTP-verified in Meta's console before they'll receive anything — no API for this, Meta anti-abuse control. The registration form now has an inline note about this.
+8. **Twilio verified-caller limit** applies per parent too — the "Call now" button surfaces a plain-language error if the parent's number isn't verified yet, instead of the raw Twilio message.
+9. **SMS fallback exists but inherits the same Twilio trial restriction** — an SMS to an unverified number will also fail; there's no way around this without upgrading the Twilio account.
 
 ## For the frontend teammate specifically
 
-The dashboard (`dashboard/`) is intentionally minimal right now — built to prove the data pipeline works, not polished. It's a great place to add real design value. Ideas, roughly in order of impact for the demo:
+Auth pages (`/login`, `/signup`, `/parents/new`) now match the rest of the dashboard's design system (material-card, spring entrance motion, accent buttons) — no longer plain forms. Remaining ideas, roughly in order of impact:
 
-- **Visual polish pass overall.** Current UI is functional dark-mode Tailwind with no real design system — spacing, typography, color use could all be leveled up. The demo script (PRD section 10) explicitly wants the dashboard to "feel" impressive in the video, so this matters.
-- **Empty/loading/error states.** Right now a parent with zero calls just shows "No calls yet." — fine, but could be nicer. Also no loading skeletons (data fetching is server-side so it's usually fast, but worth handling).
+- **Trend chart improvements**: a visual marker/annotation on the exact point an urgent call happened (currently just a dip in the line), or a toggle between 2-week/all-time view.
 - **Mobile responsiveness** — not tested at all on small screens yet.
-- **Call detail improvements**: right now expanding a call row just dumps the raw transcript as preformatted text with `Sukoon:`/`Parent:` prefixes (well, `HaalChaal:`/`Parent:` now) — could render as a proper chat bubble UI instead, which would look much better in the demo video.
-- **Trend chart improvements**: could add a visual marker/annotation on the exact point where an urgent call happened (currently it's just a dip in the mood line, not explicitly called out on the chart itself), or a toggle between 2-week/all-time view.
-- **Multi-parent support** now works for real (auth added Day 2) — each user can register and see multiple parents of their own.
-- **Auth pages need visual polish** — `/login`, `/signup`, and `/parents/new` are plain unstyled forms right now (functional, not designed). Same design-token treatment as the rest of the dashboard would help a lot here.
-- **Surface the WhatsApp/Twilio verification gotchas in the UI** — right now if a newly registered parent's number isn't Twilio-verified, or the family WhatsApp number isn't added in Meta's console, things just silently don't work (or show a raw error). Worth a friendly inline note on the registration form and/or the parent page about both limitations (see Known Gaps #6 and #7 above).
+- **Loading states** — data fetching is server-side so it's usually fast, but there's no skeleton/spinner anywhere.
+- **The chat-bubble transcript view** (`TranscriptView.tsx`) is new and functional but minimal — could use more visual distinction between speakers, timestamps per turn, etc.
 
-Relevant files: `dashboard/src/app/page.tsx` (parent list), `dashboard/src/app/parent/[id]/page.tsx` (detail page), `dashboard/src/app/login/page.tsx`, `dashboard/src/app/signup/page.tsx`, `dashboard/src/app/parents/new/page.tsx`, `dashboard/src/components/TrendChart.tsx`, `dashboard/src/components/CallList.tsx`, `dashboard/src/components/CallNowButton.tsx`.
+Relevant files: `dashboard/src/app/page.tsx`, `dashboard/src/app/parent/[id]/page.tsx`, `dashboard/src/app/login/page.tsx`, `dashboard/src/app/signup/page.tsx`, `dashboard/src/app/parents/new/page.tsx`, `dashboard/src/components/TrendChart.tsx`, `dashboard/src/components/CallList.tsx`, `dashboard/src/components/TranscriptView.tsx`, `dashboard/src/components/CallNowButton.tsx`.
 
 ## Git hygiene reminder (from PRD section 11)
 

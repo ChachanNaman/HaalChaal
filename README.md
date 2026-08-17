@@ -20,11 +20,11 @@ Adult children — especially NRIs or those living in another city — worry abo
 
 | Layer | Tool |
 |---|---|
-| Telephony | Twilio (Gather/Say turn-based speech loop — ConversationRelay's real-time streaming requires a paid Twilio account, so this uses the classic always-available voice verbs instead) |
-| Conversation & extraction LLM | Groq (Llama 3.3 70B) |
-| Hindi/Hinglish STT + TTS | Sarvam AI (Saaras + Bulbul) |
-| Database | Supabase |
-| Family delivery | WhatsApp Cloud API |
+| Telephony | Twilio (turn-based `<Record>`/`<Play>` loop — ConversationRelay's real-time streaming requires a paid Twilio account, so this uses classic voice verbs instead) |
+| Conversation & extraction LLM | Groq (openai/gpt-oss-120b) |
+| Hindi/Hinglish STT + TTS | Sarvam AI (Saarika + Bulbul), with automatic fallback to Twilio's native speech engine if Sarvam is unavailable |
+| Database | Supabase (with per-user auth + RLS) |
+| Family delivery | WhatsApp Cloud API, with SMS fallback via Twilio |
 | Dashboard | Next.js + Recharts on Vercel |
 | Voice backend | FastAPI (this repo's `voice-backend/`) |
 
@@ -51,11 +51,12 @@ uvicorn app.main:app --reload --port 8000
 
 Expose it publicly during development (e.g. `ngrok http 8000`) and set `PUBLIC_BASE_URL` in `.env` to that URL — Twilio needs a public webhook and websocket endpoint.
 
-In the Twilio console, set your phone number's "A call comes in" webhook to `POST {PUBLIC_BASE_URL}/voice`, or trigger an outbound demo call directly:
+In the Twilio console, set your phone number's "A call comes in" webhook to `POST {PUBLIC_BASE_URL}/voice`, or trigger an outbound demo call directly (requires the `INTERNAL_API_KEY` header, since this endpoint places a real call):
 
 ```bash
 curl -X POST "$PUBLIC_BASE_URL/demo/call" \
   -H "Content-Type: application/json" \
+  -H "X-Internal-Api-Key: $INTERNAL_API_KEY" \
   -d '{"phone_number": "+91XXXXXXXXXX"}'
 ```
 
@@ -72,13 +73,20 @@ Visit `http://localhost:3000` — it lists parents, and each parent's page shows
 
 ## Database
 
-1. Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor for a fresh project to create the `parents`, `calls`, and `family_contacts` tables.
-2. Run [`supabase/migrations/0002_multi_user_auth.sql`](supabase/migrations/0002_multi_user_auth.sql) to add per-user ownership and RLS policies. After running it, also run `NOTIFY pgrst, 'reload schema';` (PostgREST's schema cache can go stale after an `ALTER TABLE`) and make sure the `authenticated` and `service_role` Postgres roles both have `GRANT`s on all three tables — RLS policies alone aren't enough, the base grant is a separate requirement. (`supabase/disable_rls.sql` documents the older single-tenant, no-auth approach; superseded now.)
-3. Optionally run [`supabase/seed.sql`](supabase/seed.sql) to backfill ~2 weeks of prior check-in history for a parent so the dashboard's trend chart has a baseline before the first live call.
+Run these in order in the Supabase SQL editor for a fresh project:
+
+1. [`supabase/schema.sql`](supabase/schema.sql) — creates the `parents`, `calls`, and `family_contacts` tables.
+2. [`supabase/migrations/0002_multi_user_auth.sql`](supabase/migrations/0002_multi_user_auth.sql) — per-user ownership + RLS policies.
+3. [`supabase/migrations/0003_call_recording.sql`](supabase/migrations/0003_call_recording.sql) — adds `call_sid` to `calls` for matching recordings back to a call.
+4. [`supabase/migrations/0004_custom_questions.sql`](supabase/migrations/0004_custom_questions.sql) — adds `custom_questions` to `parents`.
+5. After any of the above, run `NOTIFY pgrst, 'reload schema';` (PostgREST's schema cache can go stale after an `ALTER TABLE`) and make sure the `authenticated` and `service_role` Postgres roles both have `GRANT`s on all three tables — RLS policies alone aren't enough, the base grant is a separate requirement.
+6. Optionally run [`supabase/seed.sql`](supabase/seed.sql) to backfill ~2 weeks of prior check-in history for a parent so the dashboard's trend chart has a baseline before the first live call.
+
+(`supabase/disable_rls.sql` documents the older single-tenant, no-auth approach; superseded now.)
 
 ## Status
 
-Must-have feature list from the PRD is working end-to-end: outbound call -> conversational check-in -> structured extraction -> Supabase storage -> WhatsApp digest, with rolling-baseline urgent escalation. Dashboard with trend chart, call history, and transcripts is live, with visual polish (animations, design tokens) in progress. Both the dashboard (Vercel) and voice backend (Render) are deployed and auto-deploy from `main`. The dashboard is now multi-tenant: users sign up, register their own parent + family WhatsApp number, and see only their own data (Supabase Auth + RLS). Sarvam AI swap for higher-fidelity Hindi/Hinglish TTS and call recording for audio playback are the remaining should-have items. See [`PRD.md`](PRD.md) section 6 for the full feature checklist and [`HANDOFF.md`](HANDOFF.md) for a more detailed breakdown of what's done vs. open.
+Full PRD feature checklist (section 6) is done: all must-haves, all should-haves (including the Sarvam AI voice pipeline), and all nice-to-haves (multiple parent profiles, configurable per-family questions, SMS fallback). Both the dashboard (Vercel) and voice backend (Render) are deployed and auto-deploy from `main`. The dashboard is multi-tenant: users sign up, register their own parent + family WhatsApp number, and see only their own data (Supabase Auth + RLS). See [`HANDOFF.md`](HANDOFF.md) for the detailed breakdown, known gaps (mainly Twilio trial-account restrictions on call recording and ConversationRelay), and what's left that genuinely needs a human (demo video, Devpost submission).
 
 ### Deployment notes
 - **Dashboard (Vercel)**: root directory is `dashboard/`, env vars `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` (client-safe) plus `BACKEND_URL` / `BACKEND_INTERNAL_API_KEY` (server-only, no `NEXT_PUBLIC_` prefix -- used by the "Call now" button's route handler) set in the Vercel project. Auto-deploys on push to `main`.

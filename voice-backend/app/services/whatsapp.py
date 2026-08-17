@@ -4,16 +4,19 @@ import httpx
 
 from app.config import settings
 from app.models import CallSignals
+from app.services import twilio_client
 
 logger = logging.getLogger(__name__)
 
 GRAPH_URL = "https://graph.facebook.com/v20.0"
 
 
-def _send_text(to_number: str, body: str) -> None:
+def _send_whatsapp(to_number: str, body: str) -> bool:
+    """Returns True if WhatsApp accepted the message, False on any failure (including WhatsApp
+    not being configured), so the caller can fall back to SMS."""
     if not settings.whatsapp_token or not settings.whatsapp_phone_number_id:
-        logger.warning("WhatsApp not configured; skipping send to %s: %s", to_number, body)
-        return
+        logger.warning("WhatsApp not configured; skipping send to %s", to_number)
+        return False
 
     url = f"{GRAPH_URL}/{settings.whatsapp_phone_number_id}/messages"
     headers = {"Authorization": f"Bearer {settings.whatsapp_token}"}
@@ -23,10 +26,35 @@ def _send_text(to_number: str, body: str) -> None:
         "type": "text",
         "text": {"body": body},
     }
-    with httpx.Client(timeout=10) as client:
-        resp = client.post(url, headers=headers, json=payload)
-        if resp.status_code >= 400:
-            logger.error("WhatsApp send failed (%s): %s", resp.status_code, resp.text)
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            if resp.status_code >= 400:
+                logger.error("WhatsApp send failed (%s): %s", resp.status_code, resp.text)
+                return False
+            return True
+    except Exception:
+        logger.exception("WhatsApp send raised an exception for %s", to_number)
+        return False
+
+
+def _send_sms_fallback(to_number: str, body: str) -> None:
+    """Nice-to-have from the PRD: if WhatsApp delivery fails (number not verified in test mode,
+    API outage, etc.), fall back to a plain SMS via Twilio so the family still gets notified."""
+    try:
+        twilio_client.get_client().messages.create(
+            to=to_number,
+            from_=settings.twilio_phone_number,
+            body=body,
+        )
+        logger.info("Sent SMS fallback to %s after WhatsApp failure", to_number)
+    except Exception:
+        logger.exception("SMS fallback also failed for %s", to_number)
+
+
+def _send_text(to_number: str, body: str) -> None:
+    if not _send_whatsapp(to_number, body):
+        _send_sms_fallback(to_number, body)
 
 
 def build_digest_message(parent_name: str, signals: CallSignals) -> str:

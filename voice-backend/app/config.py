@@ -18,11 +18,17 @@ class Settings:
     groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     sarvam_api_key: str = os.getenv("SARVAM_API_KEY", "")
-    # Sarvam TTS (via <Play>) works fine on this Twilio account, but Sarvam STT needs the
-    # <Record> TwiML verb, which this account rejects outright ("recording... not available on
-    # child account") -- confirmed on a live call. Default STT to Twilio's native <Gather> until
-    # that's resolved (e.g. account upgrade); flip this on to retry the Sarvam STT path.
+    # Sarvam STT needs the <Record> TwiML verb, which this account rejects outright
+    # ("recording... not available on child account") -- confirmed on a live call. Default to
+    # Twilio's native <Gather> until that's resolved (e.g. account upgrade); flip this on to
+    # retry the Sarvam STT path.
     enable_sarvam_stt: bool = os.getenv("ENABLE_SARVAM_STT", "false").lower() == "true"
+    # Sarvam TTS (via <Play>) works and was verified against the live API, but it adds an extra
+    # network hop per turn (Twilio has to separately fetch our /tts-audio proxy URL, unlike
+    # <Say> which needs nothing fetched) -- on this free-tier deployment that occasionally
+    # contributed to slow/failed turns during live calls. Defaults off for demo reliability;
+    # flip this on to use Sarvam's voice again once fetch reliability isn't a concern.
+    enable_sarvam_tts: bool = os.getenv("ENABLE_SARVAM_TTS", "false").lower() == "true"
 
     whatsapp_token: str = os.getenv("WHATSAPP_CLOUD_API_TOKEN", "")
     whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")

@@ -46,9 +46,11 @@ def _voice_for_language(language: str) -> str:
 
 def _add_speech(container, text: str, language: str) -> None:
     """Adds a spoken prompt to a TwiML container (VoiceResponse or Gather, both support nested
-    <Play>/<Say>). Prefers Sarvam Bulbul TTS (the PRD's vernacular differentiator); falls back to
-    Twilio's own Say if Sarvam isn't configured or the synthesis call fails for any reason."""
-    audio = sarvam.synthesize_speech(text, language) if sarvam.is_configured() else None
+    <Play>/<Say>). Uses Sarvam Bulbul TTS (the PRD's vernacular differentiator) only when
+    explicitly enabled -- see settings.enable_sarvam_tts -- since it adds a network hop (Twilio
+    has to separately fetch our /tts-audio proxy) that's contributed to unreliable live calls on
+    this free-tier deployment. Twilio's own Say is the reliable default."""
+    audio = sarvam.synthesize_speech(text, language) if (settings.enable_sarvam_tts and sarvam.is_configured()) else None
     if audio:
         audio_id = audio_cache.store(audio)
         container.play(f"{settings.public_base_url}/tts-audio/{audio_id}")

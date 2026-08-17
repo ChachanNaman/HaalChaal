@@ -40,3 +40,7 @@ def insert_call(row: dict) -> dict:
 def get_family_contacts(parent_id: str) -> list[dict]:
     res = get_client().table("family_contacts").select("*").eq("parent_id", parent_id).execute()
     return res.data or []
+
+
+def set_call_audio_url(call_sid: str, audio_url: str) -> None:
+    get_client().table("calls").update({"audio_url": audio_url}).eq("call_sid", call_sid).execute()

@@ -6,7 +6,7 @@ from twilio.twiml.voice_response import Gather, VoiceResponse
 from app.config import settings
 from app.conversation_state import CallSession, create_session, get_session, pop_session
 from app.prompts import CONVERSATION_SYSTEM_PROMPT, OPENING_GREETING_TEMPLATE
-from app.services import llm, supabase_client
+from app.services import audio_cache, llm, sarvam, supabase_client, twilio_client
 from app.services.pipeline import run_post_call_pipeline
 
 logger = logging.getLogger(__name__)
@@ -15,6 +15,7 @@ router = APIRouter()
 END_TOKEN = "[END_CALL]"
 MAX_SILENT_RETRIES = 2
 GATHER_ACTION_URL = f"{settings.public_base_url}/voice/gather"
+RECORD_ACTION_URL = f"{settings.public_base_url}/voice/record"
 
 
 def _lookup_parent_by_phone(phone_number: str) -> dict | None:
@@ -40,43 +41,68 @@ def _language_code(preferred_language: str) -> str:
 
 def _voice_for_language(language: str) -> str:
     # Google's WaveNet voices pronounce Devanagari-script Hindi far more naturally than
-    # Twilio's default TTS engine.
+    # Twilio's default TTS engine. Used as the fallback when Sarvam TTS isn't configured or fails.
     return "Google.hi-IN-Wavenet-A" if language == "hi-IN" else "Google.en-IN-Wavenet-D"
 
 
-def _gather_response(prompt_text: str, language: str) -> VoiceResponse:
-    """A <Gather> that speaks prompt_text then listens for the caller's reply; falls back to a
-    goodbye + hangup if nothing is heard at all, since Gather always calls the action URL."""
-    voice = _voice_for_language(language)
+def _add_speech(container, text: str, language: str) -> None:
+    """Adds a spoken prompt to a TwiML container (VoiceResponse or Gather, both support nested
+    <Play>/<Say>). Prefers Sarvam Bulbul TTS (the PRD's vernacular differentiator); falls back to
+    Twilio's own Say if Sarvam isn't configured or the synthesis call fails for any reason."""
+    audio = sarvam.synthesize_speech(text, language) if sarvam.is_configured() else None
+    if audio:
+        audio_id = audio_cache.store(audio)
+        container.play(f"{settings.public_base_url}/tts-audio/{audio_id}")
+    else:
+        container.say(text, language=language, voice=_voice_for_language(language))
+
+
+def _prompt_response(prompt_text: str, language: str) -> VoiceResponse:
+    """Speaks prompt_text then listens for the caller's reply. Uses Sarvam Saarika STT (via a
+    short <Record> + our own transcription) when Sarvam is configured, otherwise falls back to
+    Twilio's built-in <Gather> speech recognition."""
     vr = VoiceResponse()
-    gather = Gather(
-        input="speech",
-        action=GATHER_ACTION_URL,
-        method="POST",
-        language=language,
-        speech_timeout="auto",
-        speech_model="phone_call",
-    )
-    gather.say(prompt_text, language=language, voice=voice)
-    vr.append(gather)
-    fallback = "माफ़ कीजिए, कुछ सुनाई नहीं दिया। नमस्ते।" if language == "hi-IN" else "Sorry, I couldn't hear anything. Goodbye."
-    vr.say(fallback, language=language, voice=voice)
-    vr.hangup()
+
+    if sarvam.is_configured():
+        _add_speech(vr, prompt_text, language)
+        vr.record(
+            action=RECORD_ACTION_URL,
+            method="POST",
+            max_length=30,
+            timeout=4,
+            trim="trim-silence",
+            play_beep=False,
+        )
+        vr.hangup()  # safety net if <Record> somehow falls through without hitting the action URL
+    else:
+        gather = Gather(
+            input="speech",
+            action=GATHER_ACTION_URL,
+            method="POST",
+            language=language,
+            speech_timeout="auto",
+            speech_model="phone_call",
+        )
+        _add_speech(gather, prompt_text, language)
+        vr.append(gather)
+        fallback = "माफ़ कीजिए, कुछ सुनाई नहीं दिया। नमस्ते।" if language == "hi-IN" else "Sorry, I couldn't hear anything. Goodbye."
+        _add_speech(vr, fallback, language)
+        vr.hangup()
+
     return vr
 
 
 def _end_call_response(closing_text: str, language: str) -> VoiceResponse:
     vr = VoiceResponse()
-    vr.say(closing_text, language=language, voice=_voice_for_language(language))
+    _add_speech(vr, closing_text, language)
     vr.hangup()
     return vr
 
 
 @router.post("/voice")
 async def voice_webhook(To: str = Form(...), From: str = Form(...), CallSid: str = Form(...)):
-    """Twilio hits this when the outbound call is answered. Starts a turn-based Gather/Say
-    conversation loop (ConversationRelay requires a paid Twilio account, so we use the classic,
-    always-available speech verbs instead)."""
+    """Twilio hits this when the outbound call is answered. Starts the turn-based conversation
+    loop (ConversationRelay requires a paid Twilio account, so we use classic speech verbs)."""
     parent = _lookup_parent_by_phone(To)
     parent_name = parent["name"] if parent else "there"
     parent_id = parent["id"] if parent else ""
@@ -89,36 +115,27 @@ async def voice_webhook(To: str = Form(...), From: str = Form(...), CallSid: str
     greeting = OPENING_GREETING_TEMPLATE.format(parent_name=parent_name)
     session.messages.append({"role": "assistant", "content": greeting})
 
-    return Response(content=str(_gather_response(greeting, language)), media_type="application/xml")
+    return Response(content=str(_prompt_response(greeting, language)), media_type="application/xml")
 
 
-@router.post("/voice/gather")
-async def voice_gather(
-    CallSid: str = Form(...),
-    SpeechResult: str = Form(default=""),
-):
-    """Handles each turn: Twilio posts the transcribed speech here after every <Gather>."""
-    session: CallSession | None = get_session(CallSid)
-    if session is None:
-        vr = VoiceResponse()
-        vr.hangup()
-        return Response(content=str(vr), media_type="application/xml")
-
-    if not SpeechResult.strip():
+def _handle_turn(session: CallSession, spoken_text: str) -> VoiceResponse:
+    """Shared turn logic for both the Twilio-native Gather path and the Sarvam Record path --
+    spoken_text is the transcribed caller speech either way (empty string means silence/nothing
+    understood, which both paths funnel into the same retry logic)."""
+    if not spoken_text.strip():
         session.silent_retries += 1
         if session.silent_retries > MAX_SILENT_RETRIES:
             session.ended = True
             closing = "ठीक है, मैं बाद में फिर से call करूँगी। अपना ख्याल रखिएगा!" if session.language == "hi-IN" else "Okay, I'll call again later. Take care!"
             response = _end_call_response(closing, session.language)
             _finish_call(session)
-            return Response(content=str(response), media_type="application/xml")
+            return response
 
         retry_prompt = "माफ़ कीजिए, मैं सुन नहीं पाई। क्या आप फिर से बोल सकते हैं?" if session.language == "hi-IN" else "Sorry, I didn't catch that. Could you say it again?"
-        response = _gather_response(retry_prompt, session.language)
-        return Response(content=str(response), media_type="application/xml")
+        return _prompt_response(retry_prompt, session.language)
 
     session.silent_retries = 0
-    session.messages.append({"role": "user", "content": SpeechResult})
+    session.messages.append({"role": "user", "content": spoken_text})
 
     reply = llm.get_next_reply(session.messages)
     should_end = END_TOKEN in reply
@@ -130,9 +147,67 @@ async def voice_gather(
         response = _end_call_response(spoken_reply, session.language)
         _finish_call(session)
     else:
-        response = _gather_response(spoken_reply, session.language)
+        response = _prompt_response(spoken_reply, session.language)
 
+    return response
+
+
+@router.post("/voice/gather")
+async def voice_gather(
+    CallSid: str = Form(...),
+    SpeechResult: str = Form(default=""),
+):
+    """Handles each turn when using Twilio's native <Gather> speech recognition (Sarvam not
+    configured, or as the historical/default path)."""
+    session: CallSession | None = get_session(CallSid)
+    if session is None:
+        vr = VoiceResponse()
+        vr.hangup()
+        return Response(content=str(vr), media_type="application/xml")
+
+    response = _handle_turn(session, SpeechResult)
     return Response(content=str(response), media_type="application/xml")
+
+
+@router.post("/voice/record")
+async def voice_record(
+    CallSid: str = Form(...),
+    RecordingUrl: str = Form(default=""),
+):
+    """Handles each turn when using Sarvam Saarika STT: downloads the just-finished per-turn
+    recording and transcribes it. Any failure (download or transcription) is treated as silence,
+    which reuses the existing retry logic rather than crashing the call."""
+    session: CallSession | None = get_session(CallSid)
+    if session is None:
+        vr = VoiceResponse()
+        vr.hangup()
+        return Response(content=str(vr), media_type="application/xml")
+
+    transcript = None
+    if RecordingUrl:
+        audio_bytes = twilio_client.download_recording_wav(RecordingUrl)
+        if audio_bytes:
+            transcript = sarvam.transcribe_audio(audio_bytes, session.language)
+
+    response = _handle_turn(session, transcript or "")
+    return Response(content=str(response), media_type="application/xml")
+
+
+@router.post("/voice/recording-callback")
+async def recording_callback(
+    CallSid: str = Form(...),
+    RecordingSid: str = Form(default=""),
+    RecordingStatus: str = Form(default=""),
+):
+    """Twilio calls this once the whole-call recording (started via record=True on the outbound
+    call) has finished processing. Points the calls row's audio_url at our own authenticated
+    proxy route, since Twilio recording URLs require Basic Auth the browser doesn't have."""
+    if RecordingStatus == "completed" and RecordingSid:
+        try:
+            supabase_client.set_call_audio_url(CallSid, f"{settings.public_base_url}/recordings/{RecordingSid}")
+        except Exception:
+            logger.exception("Failed to set audio_url for call %s", CallSid)
+    return Response(content="<Response></Response>", media_type="application/xml")
 
 
 def _finish_call(session: CallSession) -> None:

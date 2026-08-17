@@ -2,7 +2,7 @@ import logging
 
 from fastapi import FastAPI
 
-from app.routes import calls, demo, voice
+from app.routes import audio, calls, demo, voice
 
 logging.basicConfig(level=logging.INFO)
 
@@ -11,6 +11,7 @@ app = FastAPI(title="HaalChaal Voice Backend")
 app.include_router(voice.router)
 app.include_router(demo.router)
 app.include_router(calls.router)
+app.include_router(audio.router)
 
 
 @app.get("/health")

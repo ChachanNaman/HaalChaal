@@ -29,6 +29,7 @@ def run_post_call_pipeline(session: CallSession) -> None:
 
     row = {
         "parent_id": session.parent_id,
+        "call_sid": session.call_sid,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "transcript": transcript,
         "audio_url": None,

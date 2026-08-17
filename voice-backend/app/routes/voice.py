@@ -59,11 +59,12 @@ def _add_speech(container, text: str, language: str) -> None:
 
 def _prompt_response(prompt_text: str, language: str) -> VoiceResponse:
     """Speaks prompt_text then listens for the caller's reply. Uses Sarvam Saarika STT (via a
-    short <Record> + our own transcription) when Sarvam is configured, otherwise falls back to
-    Twilio's built-in <Gather> speech recognition."""
+    short <Record> + our own transcription) when enabled and configured, otherwise uses
+    Twilio's built-in <Gather> speech recognition (Sarvam TTS is still used for the spoken
+    prompt either way, via _add_speech)."""
     vr = VoiceResponse()
 
-    if sarvam.is_configured():
+    if settings.enable_sarvam_stt and sarvam.is_configured():
         _add_speech(vr, prompt_text, language)
         vr.record(
             action=RECORD_ACTION_URL,

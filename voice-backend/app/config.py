@@ -18,6 +18,11 @@ class Settings:
     groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     sarvam_api_key: str = os.getenv("SARVAM_API_KEY", "")
+    # Sarvam TTS (via <Play>) works fine on this Twilio account, but Sarvam STT needs the
+    # <Record> TwiML verb, which this account rejects outright ("recording... not available on
+    # child account") -- confirmed on a live call. Default STT to Twilio's native <Gather> until
+    # that's resolved (e.g. account upgrade); flip this on to retry the Sarvam STT path.
+    enable_sarvam_stt: bool = os.getenv("ENABLE_SARVAM_STT", "false").lower() == "true"
 
     whatsapp_token: str = os.getenv("WHATSAPP_CLOUD_API_TOKEN", "")
     whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")

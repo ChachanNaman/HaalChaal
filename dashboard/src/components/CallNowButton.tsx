@@ -39,7 +39,7 @@ export default function CallNowButton({ parentId }: { parentId: string }) {
       <button
         onClick={handleClick}
         disabled={status === "calling"}
-        className="press-feedback rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black transition-opacity disabled:opacity-50"
+        className="press-feedback rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground transition-opacity disabled:opacity-50"
       >
         {status === "calling" ? "Calling…" : "Call now"}
       </button>
@@ -50,7 +50,7 @@ export default function CallNowButton({ parentId }: { parentId: string }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={SPRING}
-            className={`text-sm ${status === "error" ? "text-red-400" : "text-gray-400"}`}
+            className={`text-sm ${status === "error" ? "text-danger" : "text-taupe"}`}
           >
             {message}
           </motion.span>

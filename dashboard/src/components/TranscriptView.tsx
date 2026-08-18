@@ -25,11 +25,11 @@ function ChatBubbles({ turns }: { turns: Turn[] }) {
             <div
               className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
                 isParent
-                  ? "bg-accent-soft text-gray-100"
-                  : "bg-white/10 text-gray-200"
+                  ? "bg-accent-soft text-ivory"
+                  : "bg-surface-2/60 text-ivory/80"
               }`}
             >
-              <p className="mb-0.5 text-[10px] uppercase tracking-wide text-gray-400">{turn.speaker}</p>
+              <p className="mb-0.5 text-[10px] uppercase tracking-wide text-taupe">{turn.speaker}</p>
               <p className="whitespace-pre-wrap">{turn.text}</p>
             </div>
           </div>
@@ -78,7 +78,7 @@ export default function TranscriptView({ transcript }: { transcript: string }) {
         <button
           onClick={() => handleToggle("original")}
           className={`press-feedback rounded-full px-2.5 py-1 ${
-            language === "original" ? "bg-accent text-black" : "bg-white/10 text-gray-400"
+            language === "original" ? "bg-accent text-accent-foreground" : "bg-surface-2/60 text-taupe"
           }`}
         >
           Original
@@ -87,17 +87,17 @@ export default function TranscriptView({ transcript }: { transcript: string }) {
           onClick={() => handleToggle("english")}
           disabled={loading}
           className={`press-feedback rounded-full px-2.5 py-1 ${
-            language === "english" ? "bg-accent text-black" : "bg-white/10 text-gray-400"
+            language === "english" ? "bg-accent text-accent-foreground" : "bg-surface-2/60 text-taupe"
           } disabled:opacity-50`}
         >
           {loading ? "Translating…" : "English"}
         </button>
-        {error && <span className="ml-2 text-red-400">{error}</span>}
+        {error && <span className="ml-2 text-danger">{error}</span>}
       </div>
       {turns.length > 0 ? (
         <ChatBubbles turns={turns} />
       ) : (
-        <pre className="whitespace-pre-wrap text-sm text-gray-300">{shownText}</pre>
+        <pre className="whitespace-pre-wrap text-sm text-ivory/80">{shownText}</pre>
       )}
     </div>
   );

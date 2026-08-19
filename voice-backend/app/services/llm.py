@@ -9,7 +9,14 @@ from app.prompts import END_TOKEN, EXTRACTION_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
-_client = Groq(api_key=settings.groq_api_key, timeout=12.0) if settings.groq_api_key else None
+# Twilio gives up waiting on our webhook response after a limited window -- if that happens
+# before we reply, the call disconnects on Twilio's side and our own crash-recovery response
+# never even gets seen (verified: a real call ended cleanly per Twilio's own records, i.e. not a
+# crash on our end, right after a turn that likely ran long on this free-tier host). Keeping our
+# own timeout well under Twilio's patience means we give up on a slow Groq call and return the
+# graceful fallback ourselves, rather than risking Twilio disconnecting first with no response
+# reaching it at all.
+_client = Groq(api_key=settings.groq_api_key, timeout=8.0) if settings.groq_api_key else None
 
 # Tried a smaller/faster model (gpt-oss-20b) here for live turns to cut latency, but it came
 # alongside a call quality regression -- reverted to the same model as extraction

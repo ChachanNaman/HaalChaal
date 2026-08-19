@@ -18,7 +18,7 @@ MAX_SILENT_RETRIES = 2
 # chances to eventually hit one -- shorter calls mean less exposure. Also a backstop regardless
 # of infra: the prompt asks the model to wrap up within 3-4 turns, but that's a request, not a
 # guarantee, so force a close if it hasn't ended the call by MAX_TURNS.
-MAX_TURNS = 6
+MAX_TURNS = 5
 GATHER_ACTION_URL = f"{settings.public_base_url}/voice/gather"
 RECORD_ACTION_URL = f"{settings.public_base_url}/voice/record"
 

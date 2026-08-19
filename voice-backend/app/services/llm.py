@@ -11,11 +11,9 @@ logger = logging.getLogger(__name__)
 
 _client = Groq(api_key=settings.groq_api_key, timeout=12.0) if settings.groq_api_key else None
 
-# Live conversation turns use a smaller/faster model than settings.groq_model (used for
-# post-call extraction, where quality matters more and latency doesn't) -- every turn happens
-# while the caller is waiting on the phone, so shaving response time here matters more than for
-# the extraction call that runs after they've already hung up.
-CONVERSATION_MODEL = "openai/gpt-oss-20b"
+# Tried a smaller/faster model (gpt-oss-20b) here for live turns to cut latency, but it came
+# alongside a call quality regression -- reverted to the same model as extraction
+# (settings.groq_model, gpt-oss-120b), which is what was in place for the known-good call.
 
 
 # Conjunctions the model sometimes uses to join two questions into one sentence with a single
@@ -53,7 +51,7 @@ def get_next_reply(messages: list[dict]) -> str:
         raise RuntimeError("GROQ_API_KEY is not configured")
 
     completion = _client.chat.completions.create(
-        model=CONVERSATION_MODEL,
+        model=settings.groq_model,
         messages=messages,
         temperature=0.6,
         max_tokens=300,

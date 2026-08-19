@@ -13,10 +13,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MAX_SILENT_RETRIES = 2
-# Hard ceiling on conversation length -- the prompt already asks the model to wrap up within
-# 5-8 turns, but that's a request, not a guarantee. If it hasn't ended the call by MAX_TURNS,
-# force a close instead of letting the conversation ramble on indefinitely.
-MAX_TURNS = 8
+# Hard ceiling on conversation length. Lowered from 8: on this free-tier host each turn carries
+# some small independent chance of a slow/failed response, so a longer call just has more
+# chances to eventually hit one -- shorter calls mean less exposure. Also a backstop regardless
+# of infra: the prompt asks the model to wrap up within 3-4 turns, but that's a request, not a
+# guarantee, so force a close if it hasn't ended the call by MAX_TURNS.
+MAX_TURNS = 6
 GATHER_ACTION_URL = f"{settings.public_base_url}/voice/gather"
 RECORD_ACTION_URL = f"{settings.public_base_url}/voice/record"
 

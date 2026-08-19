@@ -27,6 +27,15 @@ def place_outbound_call(to_number: str) -> str:
     recording via the REST API is blocked on Twilio trial accounts ("Invalid or disallowed
     parameters"), so this falls back to placing the call without recording rather than failing
     the call entirely."""
+    # Fires no matter how the call ends -- including the caller simply hanging up mid-conversation,
+    # which the normal TwiML flow never gets a chance to react to (Twilio just stops calling our
+    # webhooks). /voice/status-callback uses this as a last-resort save for whatever transcript
+    # was captured up to that point, so a caller hangup doesn't silently lose the whole call.
+    status_kwargs = {
+        "status_callback": f"{settings.public_base_url}/voice/status-callback",
+        "status_callback_event": ["completed"],
+        "status_callback_method": "POST",
+    }
     try:
         call = get_client().calls.create(
             to=to_number,
@@ -35,6 +44,7 @@ def place_outbound_call(to_number: str) -> str:
             record=True,
             recording_status_callback=f"{settings.public_base_url}/voice/recording-callback",
             recording_status_callback_event=["completed"],
+            **status_kwargs,
         )
         return call.sid
     except TwilioRestException as exc:
@@ -44,6 +54,7 @@ def place_outbound_call(to_number: str) -> str:
                 to=to_number,
                 from_=settings.twilio_phone_number,
                 url=f"{settings.public_base_url}/voice",
+                **status_kwargs,
             )
             return call.sid
         raise

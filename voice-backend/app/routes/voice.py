@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MAX_SILENT_RETRIES = 2
+# Hard ceiling on conversation length -- the prompt already asks the model to wrap up within
+# 5-8 turns, but that's a request, not a guarantee. If it hasn't ended the call by MAX_TURNS,
+# force a close instead of letting the conversation ramble on indefinitely.
+MAX_TURNS = 8
 GATHER_ACTION_URL = f"{settings.public_base_url}/voice/gather"
 RECORD_ACTION_URL = f"{settings.public_base_url}/voice/record"
 
@@ -159,9 +163,10 @@ def _handle_turn(session: CallSession, spoken_text: str) -> VoiceResponse:
 
     session.silent_retries = 0
     session.messages.append({"role": "user", "content": spoken_text})
+    session.turn_count += 1
 
     reply = llm.get_next_reply(session.messages)
-    should_end = END_TOKEN in reply
+    should_end = END_TOKEN in reply or session.turn_count >= MAX_TURNS
     spoken_reply = reply.replace(END_TOKEN, "").strip()
     session.messages.append({"role": "assistant", "content": spoken_reply})
 
@@ -226,6 +231,24 @@ def voice_record(
         logger.exception("Unhandled error in /voice/record for call %s", CallSid)
         _finish_call(session)
         return _crash_fallback_response(session.language)
+
+
+@router.post("/voice/status-callback")
+def status_callback(
+    CallSid: str = Form(...),
+    CallStatus: str = Form(default=""),
+):
+    """Fires when the call ends for ANY reason, including the caller hanging up mid-conversation
+    -- which the normal TwiML flow never reacts to (Twilio just stops calling our webhooks, and
+    the session would otherwise sit in memory forever, with the transcript/WhatsApp digest never
+    saved). If a session is still open at this point, it wasn't finalized through the normal
+    end-of-call or crash paths, so salvage whatever was captured here as a last resort."""
+    if CallStatus == "completed":
+        session = get_session(CallSid)
+        if session is not None:
+            logger.info("Call %s ended without a normal finish (likely caller hangup) -- salvaging via status callback", CallSid)
+            _finish_call(session)
+    return Response(content="<Response></Response>", media_type="application/xml")
 
 
 @router.post("/voice/recording-callback")

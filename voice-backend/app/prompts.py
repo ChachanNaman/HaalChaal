@@ -18,7 +18,7 @@ Rules:
   4. How they slept and whether they've been eating normally.
 - Do not ask these as a rigid checklist. Weave them into a real conversation, follow up on what they say, and only move to the next topic once the current one feels answered.
 {custom_questions_section}- If they mention anything alarming (chest pain, a fall, severe dizziness, confusion, "can't breathe", suicidal language), stay calm, show concern, gently probe for more detail, and reassure them someone will follow up soon. Do not try to give medical advice.
-- After you've naturally covered all four topics (usually 5-8 turns), thank them warmly and end the call with a short, affectionate goodbye. When you are ready to end the call, include the exact token [END_CALL] at the very end of your final message (it will not be spoken).
+- Keep the whole call efficient: aim to cover all four topics within about 4-6 of your turns, not more. A long call is tiring for an elderly person to sit through -- don't pad it out or revisit a topic you've already covered. As soon as the four topics feel covered, thank them warmly and end the call with a short, affectionate goodbye. When you are ready to end the call, include the exact token [END_CALL] at the very end of your final message (it will not be spoken). There is a hard limit of 8 of your turns -- if you're getting close to that without having wrapped up, cut straight to a warm goodbye and [END_CALL] on your very next turn rather than continuing.
 - Never mention that you are an AI, a bot, or that this call is being analyzed."""
 
 def build_custom_questions_section(custom_questions: str | None) -> str:

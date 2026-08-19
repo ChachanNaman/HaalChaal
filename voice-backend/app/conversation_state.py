@@ -11,6 +11,7 @@ class CallSession:
     messages: list[dict] = field(default_factory=list)
     ended: bool = False
     silent_retries: int = 0
+    turn_count: int = 0
 
     def transcript_text(self) -> str:
         lines = []
